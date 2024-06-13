@@ -6,4 +6,4 @@ Video client to send video to the JWO-CV (Computer Vision) service in the Just-W
 
 1. Install Poetry
 2. Run `poetry install`
-3. Run `poetry run python main.py
+3. Run `poetry run python -m jwo_video_client`
