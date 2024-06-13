@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "jwo-video-client"
+version = "0.1.0"
+description = "Video client for the JWO system."
+authors = ["Ha Phi Hung <haphihung55@gmail.com>"]
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.12"
+aiortc = "^1.9.0"
+aiohttp = "^3.9.5"
+aiodns = "^3.2.0"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.4.8"
+pre-commit = "^3.7.1"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
