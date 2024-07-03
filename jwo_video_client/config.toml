@@ -1,7 +1,7 @@
 [video]
 dev_idx = 0
-image_size = "224x224"
-frame_rate = 24
+image_size = "640x640"
+frame_rate = 30
 
-[webrtc]
+[video_server]
 server = "http://localhost:5001/offer"

@@ -3,6 +3,7 @@
         "aiohttp",
         "aiortc",
         "connectionstatechange",
+        "sendonly",
         "webrtc"
     ]
 }
