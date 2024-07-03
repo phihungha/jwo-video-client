@@ -4,4 +4,4 @@ image_size = "640x640"
 frame_rate = 30
 
 [video_server]
-server = "http://localhost:5001/offer"
+url = "http://localhost:6000/offer"

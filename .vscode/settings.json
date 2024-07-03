@@ -2,7 +2,10 @@
     "cSpell.words": [
         "aiohttp",
         "aiortc",
+        "blackhole",
         "connectionstatechange",
+        "imshow",
+        "ndarray",
         "sendonly",
         "webrtc"
     ]
