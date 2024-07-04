@@ -1,8 +1,10 @@
 import argparse
 import asyncio
 import logging
+import signal
 
 import aiohttp
+import aiohttp.client_exceptions
 import aiohttp.web
 import aiortc
 import cv2
@@ -16,6 +18,10 @@ logger = logging.getLogger("jwo_video_client")
 
 media_relay = media.MediaRelay()
 media_blackhole = media.MediaBlackhole()
+
+
+class AppException(Exception):
+    pass
 
 
 class VideoDisplayTrack(aiortc.MediaStreamTrack):
@@ -36,7 +42,7 @@ class VideoDisplayTrack(aiortc.MediaStreamTrack):
             cv2.destroyWindow("Debug")
             logger.info("Closing video connection...")
             await self.video_conn.close()
-            exit(0)
+            asyncio.get_event_loop().stop()
 
         return video_frame
 
@@ -79,6 +85,18 @@ def create_video_conn(
 
     peer_conn = aiortc.RTCPeerConnection()
 
+    event_loop = asyncio.get_event_loop()
+
+    async def on_stop_signal():
+        logger.info("Video connection is being shut down...")
+        await peer_conn.close()
+        event_loop.stop()
+
+    for sig_name in ("SIGINT", "SIGTERM"):
+        event_loop.add_signal_handler(
+            getattr(signal, sig_name), lambda: asyncio.create_task(on_stop_signal())
+        )
+
     @peer_conn.on("connectionstatechange")
     async def on_conn_state_change():
         logger.info("Connection state is %s", peer_conn.connectionState)
@@ -89,8 +107,6 @@ def create_video_conn(
     def on_track(track: aiortc.MediaStreamTrack):
         if track.kind != "video":
             return
-
-        logger.info("Received debug video track.")
         display_track = VideoDisplayTrack(media_relay.subscribe(track), peer_conn)
         media_blackhole.addTrack(display_track)
         cv2.namedWindow("Debug")
@@ -105,7 +121,18 @@ def create_video_conn(
 
 async def send_video_conn_offer(
     peer_conn: aiortc.RTCPeerConnection, server_url: str, use_debug_video: bool
-) -> None:
+) -> str:
+    """Send offer to setup WebRTC peer connection for video stream.
+
+    Args:
+        peer_conn (aiortc.RTCPeerConnection): Peer connection
+        server_url (str): Server URL
+        use_debug_video (bool): Request return debug video
+
+    Returns:
+        str: Client ID assigned by server
+    """
+
     offer = await peer_conn.createOffer()
     await peer_conn.setLocalDescription(offer)
 
@@ -115,11 +142,16 @@ async def send_video_conn_offer(
         "use_debug_video": use_debug_video,
     }
     async with aiohttp.ClientSession() as session:
-        async with session.post(server_url, json=offer_body) as resp:
-            resp = await resp.json()
+        try:
+            async with session.post(server_url, json=offer_body) as resp:
+                resp = await resp.json()
+        except aiohttp.client_exceptions.ClientConnectionError as err:
+            raise AppException(f"Failed to connect to {server_url}") from err
 
     answer = aiortc.RTCSessionDescription(sdp=resp["sdp"], type=resp["type"])
     await peer_conn.setRemoteDescription(answer)
+
+    return resp["id"]
 
 
 async def main(server_url: str, debug_mode: bool):
@@ -133,7 +165,18 @@ async def main(server_url: str, debug_mode: bool):
     await send_video_conn_offer(video_conn, server_url, debug_mode)
 
     await media_blackhole.start()
-    await asyncio.Event().wait()
+
+
+def exception_handler(event_loop, context):
+    """https://stackoverflow.com/questions/43207927/how-to-shutdown-the-loop-and-print-error-if-coroutine-raised-an-exception-with-a"""
+
+    exception = context.get("exception")
+    if isinstance(exception, AppException):
+        logger.error(exception)
+    else:
+        logger.exception(exception)
+
+    event_loop.stop()
 
 
 if __name__ == "__main__":
@@ -141,10 +184,15 @@ if __name__ == "__main__":
         prog="JWO Video Client",
         description="Video client for the Just-Walk-Out Shopping System.",
     )
-    parser.add_argument("-d", "--debug")
+    parser.add_argument("-d", "--debug", action="store_true")
     args = parser.parse_args()
 
     with open(CONFIG_PATH, "rb") as file:
         config = tomllib.load(file)
 
-    asyncio.run(main(config, debug_mode=True))
+    event_loop = asyncio.new_event_loop()
+    event_loop.set_exception_handler(exception_handler)
+    asyncio.set_event_loop(event_loop)
+
+    event_loop.create_task(main(config, debug_mode=args.debug))
+    event_loop.run_forever()
