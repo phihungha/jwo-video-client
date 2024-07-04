@@ -1,6 +1,6 @@
 [video]
 dev_idx = 0
-image_size = "640x640"
+image_size = "640x480"
 frame_rate = 30
 
 [video_server]

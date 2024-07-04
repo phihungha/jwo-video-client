@@ -9,10 +9,10 @@ import cv2
 import tomllib
 from aiortc.contrib import media
 
-CONFIG_PATH = "jwo_video_client/config.toml"
+CONFIG_PATH = "config.toml"
 
-logging.basicConfig()
-logger = logging.Logger("jwo_video_client")
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("jwo_video_client")
 
 media_relay = media.MediaRelay()
 media_blackhole = media.MediaBlackhole()
@@ -21,15 +21,23 @@ media_blackhole = media.MediaBlackhole()
 class VideoDisplayTrack(aiortc.MediaStreamTrack):
     kind = "video"
 
-    def __init__(self, track: aiortc.MediaStreamTrack):
+    def __init__(
+        self, track: aiortc.MediaStreamTrack, video_conn: aiortc.RTCPeerConnection
+    ):
         super().__init__()
         self.track = track
+        self.video_conn = video_conn
 
     async def recv(self):
         video_frame = await self.track.recv()
         cv2.imshow("Debug", video_frame.to_ndarray(format="bgr24"))
+
         if cv2.waitKey(1) == ord("q"):
             cv2.destroyWindow("Debug")
+            logger.info("Closing video connection...")
+            await self.video_conn.close()
+            exit(0)
+
         return video_frame
 
 
@@ -83,7 +91,8 @@ def create_video_conn(
             return
 
         logger.info("Received debug video track.")
-        media_blackhole.addTrack(track)
+        display_track = VideoDisplayTrack(media_relay.subscribe(track), peer_conn)
+        media_blackhole.addTrack(display_track)
         cv2.namedWindow("Debug")
 
     if accept_debug_video:
@@ -95,10 +104,10 @@ def create_video_conn(
 
 
 async def send_video_conn_offer(
-    connection: aiortc.RTCPeerConnection, server_url: str, use_debug_video: bool
+    peer_conn: aiortc.RTCPeerConnection, server_url: str, use_debug_video: bool
 ) -> None:
-    offer = await connection.createOffer()
-    await connection.setLocalDescription(offer)
+    offer = await peer_conn.createOffer()
+    await peer_conn.setLocalDescription(offer)
 
     offer_body = {
         "sdp": offer.sdp,
@@ -110,22 +119,21 @@ async def send_video_conn_offer(
             resp = await resp.json()
 
     answer = aiortc.RTCSessionDescription(sdp=resp["sdp"], type=resp["type"])
-    await connection.setRemoteDescription(answer)
+    await peer_conn.setRemoteDescription(answer)
 
 
-async def main(config: dict[str, any], debug_mode: bool):
+async def main(server_url: str, debug_mode: bool):
     video_config = config["video"]
     video_track = create_video_track(
         video_config["dev_idx"], video_config["image_size"], video_config["frame_rate"]
     )
+    video_conn = create_video_conn(video_track, accept_debug_video=True)
 
-    video_conn = create_video_conn(video_track, accept_debug_video=debug_mode)
+    server_url = config["video_server"]["url"]
+    await send_video_conn_offer(video_conn, server_url, debug_mode)
+
     await media_blackhole.start()
-
-    server_config = config["video_server"]
-    await send_video_conn_offer(video_conn, server_config["url"])
-
-    await asyncio.Event.wait()
+    await asyncio.Event().wait()
 
 
 if __name__ == "__main__":
@@ -139,4 +147,4 @@ if __name__ == "__main__":
     with open(CONFIG_PATH, "rb") as file:
         config = tomllib.load(file)
 
-    asyncio.run(main(config, debug_mode=args.debug))
+    asyncio.run(main(config, debug_mode=True))
