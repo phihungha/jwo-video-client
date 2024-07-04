@@ -1,10 +1,15 @@
 # Editors & IDEs
-!.vscode/
 .vscode/*
 !.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+
 .idea/
 *.code-workspace
 *.swp
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
+
+# Video files
+*.{mp4,avi}
