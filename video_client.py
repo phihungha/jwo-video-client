@@ -13,7 +13,10 @@ from aiortc.contrib import media
 
 CONFIG_PATH = "config.toml"
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(asctime)s | %(levelname)s] %(message)s",
+)
 logger = logging.getLogger("jwo_video_client")
 
 media_relay = media.MediaRelay()
