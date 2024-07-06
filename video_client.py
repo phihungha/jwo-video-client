@@ -50,7 +50,7 @@ class VideoDisplayTrack(aiortc.MediaStreamTrack):
         return video_frame
 
 
-def create_video_track(
+def create_video_track_from_capture_dev(
     dev_idx: int, size: str, frame_rate: int
 ) -> aiortc.MediaStreamTrack:
     """Create video track from a capture device.
@@ -70,6 +70,29 @@ def create_video_track(
         "framerate": str(frame_rate),
     }
     player = media.MediaPlayer(device_node, format="v4l2", options=options)
+
+    return media_relay.subscribe(player.video)
+
+
+def create_video_track_from_file(
+    file_path: str, size: str, frame_rate: int
+) -> aiortc.MediaStreamTrack:
+    """Create video track from a video file.
+
+    Args:
+        file_path (str): File path
+        size (str): Image size
+        frame_rate (int): Video frame rate
+
+    Returns:
+        aiortc.MediaStreamTrack: Video track
+    """
+
+    options = {
+        "video_size": size,
+        "framerate": str(frame_rate),
+    }
+    player = media.MediaPlayer(file_path, options=options)
 
     return media_relay.subscribe(player.video)
 
@@ -157,15 +180,25 @@ async def send_video_conn_offer(
     return resp["id"]
 
 
-async def main(server_url: str, debug_mode: bool):
+async def main(server_url: str, args: argparse.Namespace):
     video_config = config["video"]
-    video_track = create_video_track(
-        video_config["dev_idx"], video_config["image_size"], video_config["frame_rate"]
-    )
+    video_file_path = args.file
+
+    if video_file_path is not None:
+        video_track = create_video_track_from_file(
+            video_file_path, video_config["image_size"], video_config["frame_rate"]
+        )
+    else:
+        video_track = create_video_track_from_capture_dev(
+            video_config["dev_idx"],
+            video_config["image_size"],
+            video_config["frame_rate"],
+        )
+
     video_conn = create_video_conn(video_track, accept_debug_video=True)
 
     server_url = config["video_server"]["url"]
-    await send_video_conn_offer(video_conn, server_url, debug_mode)
+    await send_video_conn_offer(video_conn, server_url, args.debug)
 
     await media_blackhole.start()
 
@@ -188,6 +221,7 @@ if __name__ == "__main__":
         description="Video client for the Just-Walk-Out Shopping System.",
     )
     parser.add_argument("-d", "--debug", action="store_true")
+    parser.add_argument("-f", "--file")
     args = parser.parse_args()
 
     with open(CONFIG_PATH, "rb") as file:
@@ -197,5 +231,5 @@ if __name__ == "__main__":
     event_loop.set_exception_handler(exception_handler)
     asyncio.set_event_loop(event_loop)
 
-    event_loop.create_task(main(config, debug_mode=args.debug))
+    event_loop.create_task(main(config, args))
     event_loop.run_forever()
