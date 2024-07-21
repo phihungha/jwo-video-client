@@ -951,7 +951,10 @@ files = [
 ]
 
 [package.dependencies]
-numpy = {version = ">=1.26.0", markers = "python_version >= \"3.12\""}
+numpy = [
+    {version = ">=1.26.0", markers = "python_version >= \"3.12\""},
+    {version = ">=1.23.5", markers = "python_version >= \"3.11\" and python_version < \"3.12\""},
+]
 
 [[package]]
 name = "platformdirs"
@@ -1359,5 +1362,5 @@ multidict = ">=4.0"
 
 [metadata]
 lock-version = "2.0"
-python-versions = "^3.12"
-content-hash = "ff614664ca25acca217ad6c193ada974fb5e570a1d779426457bcab8610b7c1a"
+python-versions = "^3.11"
+content-hash = "129704e5333458ac5b5a881445bcf4d902c3f50537455d8d50764926ba7b86a0"
