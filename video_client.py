@@ -45,6 +45,7 @@ class VideoDisplayTrack(aiortc.MediaStreamTrack):
             cv2.destroyWindow("Debug")
             logger.info("Closing video connection...")
             await self.video_conn.close()
+            await media_blackhole.stop()
             asyncio.get_event_loop().stop()
 
         return video_frame
