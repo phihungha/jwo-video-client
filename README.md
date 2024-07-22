@@ -7,3 +7,5 @@ Video client to send video to the CV (Computer Vision) service in the Just-Walk-
 1. Install Poetry
 2. Run `poetry install`
 3. Run `poetry run python video_client.py`
+
+Use `poetry run python video_client.py --help` for help.
