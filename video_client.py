@@ -180,7 +180,7 @@ async def send_video_conn_offer(
     return resp["id"]
 
 
-async def main(server_url: str, args: argparse.Namespace):
+async def main(config: dict[str, any], args: argparse.Namespace):
     video_config = config["video"]
     video_file_path = args.file
 

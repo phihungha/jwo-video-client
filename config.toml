@@ -1,5 +1,5 @@
 [video]
-dev_idx = 0
+dev_idx = 2
 image_size = "640x480"
 frame_rate = 30
 
